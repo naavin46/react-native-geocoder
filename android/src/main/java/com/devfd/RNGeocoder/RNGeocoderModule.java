@@ -31,35 +31,63 @@ public class RNGeocoderModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void geocodeAddress(String addressName, Promise promise) {
-        if (!geocoder.isPresent()) {
-          promise.reject("NOT_AVAILABLE", "Geocoder not available for this platform");
-          return;
-        }
-
-        try {
-            List<Address> addresses = geocoder.getFromLocationName(addressName, 20);
-            promise.resolve(transform(addresses));
-        }
-
-        catch (IOException e) {
-            promise.reject(e);
-        }
-    }
-
-    @ReactMethod
-    public void geocodePosition(ReadableMap position, Promise promise) {
+    public void geocodeAddress(String addressName, final Promise promise) {
         if (!geocoder.isPresent()) {
             promise.reject("NOT_AVAILABLE", "Geocoder not available for this platform");
             return;
         }
 
-        try {
-            List<Address> addresses = geocoder.getFromLocation(position.getDouble("lat"), position.getDouble("lng"), 20);
-            promise.resolve(transform(addresses));
+        if (android.os.Build.VERSION.SDK_INT < 33) {
+            try {
+                List<Address> addresses = geocoder.getFromLocationName(addressName, 20);
+                promise.resolve(transform(addresses));
+            }
+
+            catch (IOException e) {
+                promise.reject(e);
+            }
+        } else {
+            geocoder.getFromLocationName(addressName, 20, new Geocoder.GeocodeListener() {
+                @Override
+                public void onGeocode(List<Address> addresses) {
+                    promise.resolve(transform(addresses));
+                }
+
+                @Override
+                public void onError(String errorMessage) {
+                    promise.reject("GEOCODING_ERROR", errorMessage);
+                }
+            });
         }
-        catch (IOException e) {
-            promise.reject(e);
+    }
+
+    @ReactMethod
+    public void geocodePosition(ReadableMap position, final Promise promise) {
+        if (!geocoder.isPresent()) {
+            promise.reject("NOT_AVAILABLE", "Geocoder not available for this platform");
+            return;
+        }
+
+        if (android.os.Build.VERSION.SDK_INT < 33) {
+            try {
+                List<Address> addresses = geocoder.getFromLocation(position.getDouble("lat"), position.getDouble("lng"), 20);
+                promise.resolve(transform(addresses));
+            }
+            catch (IOException e) {
+                promise.reject(e);
+            }
+        } else {
+            geocoder.getFromLocation(position.getDouble("lat"), position.getDouble("lng"), 20, new Geocoder.GeocodeListener() {
+                @Override
+                public void onGeocode(List<Address> addresses) {
+                    promise.resolve(transform(addresses));
+                }
+
+                @Override
+                public void onError(String errorMessage) {
+                    promise.reject("GEOCODING_ERROR", errorMessage);
+                }
+            });
         }
     }
 
